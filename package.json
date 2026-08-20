@@ -5,11 +5,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "cd frontend && npm install && npm run build",
+    "build": "node build.js",
     "seed": "cd backend && npm run seed",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev"
   },
+
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",
