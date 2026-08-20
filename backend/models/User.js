@@ -16,7 +16,16 @@ const userSchema = new mongoose.Schema(
     childName: { type: String, trim: true },
     childGrade: { type: String, trim: true },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: {
+      transform: (doc, ret) => {
+        delete ret.password;
+        delete ret.__v;
+        return ret;
+      },
+    },
+  }
 );
 
 userSchema.pre("save", async function (next) {
@@ -31,3 +40,4 @@ userSchema.methods.comparePassword = function (candidate) {
 };
 
 export default mongoose.model("User", userSchema);
+

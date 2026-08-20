@@ -67,5 +67,45 @@ export const login = async (req, res, next) => {
 
 // @route GET /api/auth/me  (used to "stay logged in" on refresh)
 export const getMe = async (req, res) => {
-  res.json({ user: req.user });
+  res.json({
+    user: {
+      id: req.user._id,
+      name: req.user.name,
+      email: req.user.email,
+      childName: req.user.childName,
+      childGrade: req.user.childGrade,
+    },
+  });
 };
+
+// @route PUT /api/auth/profile
+export const updateProfile = async (req, res, next) => {
+  try {
+    const { name, childName, childGrade } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (name && name.trim()) user.name = name.trim();
+    if (childName !== undefined) user.childName = childName.trim();
+    if (childGrade !== undefined) user.childGrade = childGrade.trim();
+
+    await user.save();
+
+    res.json({
+      message: "Profile updated successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        childName: user.childName,
+        childGrade: user.childGrade,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+

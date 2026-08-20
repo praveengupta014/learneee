@@ -1,24 +1,61 @@
 import mongoose from "mongoose";
+import dotenv from "dotenv";
 
-// Connection tuned for high concurrency:
-// - maxPoolSize raised so a single Node process can hold many concurrent
-//   sockets to MongoDB instead of queuing requests behind a small pool.
-// - In a real 1M-concurrent-user deployment, this API would run as many
-//   stateless replicas behind a load balancer (see README "Scaling to 1M
-//   concurrent users"), each with its own pool, talking to a MongoDB
-//   replica set (or sharded cluster) rather than a single instance.
+dotenv.config();
+
+/**
+ * Global cache for Mongoose connection across serverless function invocations (Vercel).
+ * Prevents multiple simultaneous connection pools from exhausting MongoDB limits.
+ */
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
 export const connectDB = async () => {
-  try {
-    mongoose.set("strictQuery", true);
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
-      maxPoolSize: 50,
-      minPoolSize: 5,
-      serverSelectionTimeoutMS: 10000,
-      socketTimeoutMS: 45000,
-    });
-    console.log(`MongoDB connected: ${conn.connection.host}`);
-  } catch (err) {
-    console.error(`MongoDB connection error: ${err.message}`);
-    process.exit(1);
+  const mongoUri = process.env.MONGO_URI;
+
+  if (!mongoUri) {
+    console.warn("⚠️ MONGO_URI environment variable is not defined.");
+    return null;
   }
+
+  if (cached.conn) {
+    return cached.conn;
+  }
+
+  if (!cached.promise) {
+    const opts = {
+      bufferCommands: false,
+      maxPoolSize: 20,
+      minPoolSize: 1,
+      serverSelectionTimeoutMS: 8000,
+      socketTimeoutMS: 45000,
+    };
+
+    mongoose.set("strictQuery", true);
+
+    cached.promise = mongoose
+      .connect(mongoUri, opts)
+      .then((mongooseInstance) => {
+        console.log(`✅ MongoDB connected: ${mongooseInstance.connection.host}`);
+        return mongooseInstance;
+      })
+      .catch((err) => {
+        cached.promise = null;
+        console.error(`❌ MongoDB connection error: ${err.message}`);
+        throw err;
+      });
+  }
+
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    throw e;
+  }
+
+  return cached.conn;
 };
+
