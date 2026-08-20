@@ -78,6 +78,20 @@ const apiLimiter = rateLimit({
 });
 app.use("/api", apiLimiter);
 
+// URL normalization for Vercel Serverless Functions
+app.use((req, res, next) => {
+  if (req.query && req.query.path) {
+    const pathStr = Array.isArray(req.query.path)
+      ? req.query.path.join("/")
+      : req.query.path;
+    if (!req.url.startsWith("/api") && !req.url.startsWith("/auth") && !req.url.startsWith("/courses")) {
+      req.url = `/${pathStr}`;
+    }
+  }
+  next();
+});
+
+
 // Database middleware: ensures Mongoose connection is established for serverless invocations
 app.use(async (req, res, next) => {
   // Allow health check and root without blocking on DB
@@ -108,7 +122,15 @@ app.get("/", (req, res) => {
   });
 });
 
-app.get("/api/health", (req, res) => {
+app.get("/api", (req, res) => {
+  res.json({
+    message: "Learniee API is running",
+    documentation: "/api/courses",
+    dbState: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+  });
+});
+
+app.get(["/health", "/api/health"], (req, res) => {
   res.json({
     status: "ok",
     dbState: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
@@ -116,12 +138,16 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// API Routes
+// API Routes - Mounted with and without /api prefix to handle all Vercel path rewrites
 app.use("/api/auth", authRoutes);
+app.use("/auth", authRoutes);
+
 app.use("/api/courses", courseRoutes);
+app.use("/courses", courseRoutes);
 
 // Error handling
 app.use(notFound);
 app.use(errorHandler);
+
 
 export default app;

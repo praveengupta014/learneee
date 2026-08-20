@@ -2,15 +2,13 @@
   "version": 2,
   "buildCommand": "node build.js",
   "outputDirectory": "dist",
-
-
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/index.js"
+      "destination": "/api/$1"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]
