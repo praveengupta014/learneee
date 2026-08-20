@@ -1,7 +1,8 @@
 {
   "version": 2,
   "buildCommand": "node build.js",
-  "outputDirectory": "frontend/dist",
+  "outputDirectory": "dist",
+
 
   "rewrites": [
     {
